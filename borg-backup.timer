@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the borg-backup service regularly.
+Requires=borg-backup.service
+
+[Timer]
+Unit=borg-backup.service
+OnCalendar=*-*-* *:00:00
+
+[Install]
+WantedBy=timers.target
