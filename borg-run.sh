@@ -12,6 +12,7 @@ LUKS_BLOCK_UUID="c9e85b9d-b0e3-41f7-b1c7-6f9b76082e31"
 LUKS_CRYPT_UUID="fdd44fbd-4673-4454-85f7-36feae95e42d"
 LUKS_DEVICE="crypt_ext"
 LUKS_KEYFILE="/etc/borg/crypt_ext.luks"
+MOUNT_STATEFILE=""
 
 TARGET=${MOUNTPOINT}/borg/dent.borg
 DATE=$(date --iso-8601)-$(hostname)
@@ -35,6 +36,7 @@ else
 	cryptsetup luksOpen -d $LUKS_KEYFILE $(realpath /dev/disk/by-uuid/$LUKS_BLOCK_UUID) $LUKS_DEVICE
 	echo "Mounting LUKS device $LUKS_DEVICE to $MOUNTPOINT"
 	mount /dev/mapper/$LUKS_DEVICE $MOUNTPOINT 
+	MOUNT_STATEFILE="$(mktemp --tmpdir ${LUKS_DEVICE}_XXX)"
 fi
 
 #
@@ -72,6 +74,7 @@ for prefix in "home" "etc"; do
 	  --list \
 	  --prefix "$prefix" \
 	  --show-rc \
+	  --keep-hourly 8 \
 	  --keep-daily 7 \
 	  --keep-weekly 4 \
 	  --keep-monthly 12
@@ -81,5 +84,12 @@ done
 # Close device
 #
 sync
-umount $MOUNTPOINT
-cryptsetup luksClose $LUKS_DEVICE
+if [ -n "$MOUNT_STATEFILE" ]; then
+	echo "Device marked as automatically mounted, starting unmounting..."
+	umount $MOUNTPOINT
+	cryptsetup luksClose $LUKS_DEVICE
+	rm $MOUNT_STATEFILE
+	echo "$LUKS_DEVICE closed and unmounted."
+else
+	echo "$MOUNTPOINT and $LUKS_DEVICE marked as manually mounted; skipping unmounting."
+fi
